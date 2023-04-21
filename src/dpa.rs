@@ -66,7 +66,7 @@ pub fn astar(init_state: &Grid, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i3
 
     println!("terminated!");
     let end = incumbent.lock().unwrap();
-    println!("{}", end.grid);
+    println!("{}", end.state);
     println!("f: {}, g: {}, h: {}", end.f, end.g, end.h);
 }
 
@@ -95,8 +95,8 @@ pub fn search(
 
     // Initialization
     let mut start = Node::new(start_state.clone());
-    start.evaluate(end_state, h_func);
-    open.insert(start.grid.clone(), start.f);
+    start.calc_cost(end_state, h_func);
+    open.insert(start.state.clone(), start.f);
     queue.push(start);
 
     // for _ in 0..1540
@@ -129,22 +129,22 @@ pub fn search(
         while !buffer.is_empty() {
             let node = buffer.pop().unwrap();
 
-            if let Some(&f) = closed.get(&node.grid) {
+            if let Some(&f) = closed.get(&node.state) {
                 if f > node.f {
-                    closed.remove(&node.grid);
+                    closed.remove(&node.state);
                 } else {
                     continue;
                 }
             }
 
             // Check if node is in open map.
-            if open.contains_key(&node.grid) {
-                if node.f >= *open.get(&node.grid).unwrap() {
+            if open.contains_key(&node.state) {
+                if node.f >= *open.get(&node.state).unwrap() {
                     continue;
                 }
             }
 
-            open.entry(node.grid.clone())
+            open.entry(node.state.clone())
                 .and_modify(|f| *f = node.f)
                 .or_insert(node.f);
             queue.push(node);
@@ -161,15 +161,15 @@ pub fn search(
 
         let node = queue.pop().unwrap();
         // Node with same grid but worse f value may still exist in queue.
-        if let None = open.get(&node.grid) {
+        if let None = open.get(&node.state) {
             continue;
         }
 
         // println!("pop node f: {} h: {}", node.f, node.h);
-        open.remove(&node.grid);
-        closed.insert(node.grid.clone(), node.f);
+        open.remove(&node.state);
+        closed.insert(node.state.clone(), node.f);
 
-        if node.grid == *end_state {
+        if node.state == *end_state {
             println!("Found solution");
             term.store(true, Ordering::SeqCst);
             let mut incumbent = incumbent.lock().unwrap();

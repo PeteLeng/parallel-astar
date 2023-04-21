@@ -1,32 +1,33 @@
 use std::collections::{BinaryHeap, HashMap};
-use crate::util::{Grid, Node, expand};
+use crate::util::{Grid, Node, expand, Log};
 
-pub fn astar(init_state: &Grid, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i32) -> Option<Node> {
+pub fn astar<'a>(
+    init_state: &Grid,
+    end_state: &Grid,
+    h_func: fn(&Grid, &Grid) -> i32,
+) -> Option<Node<'a>> {
+    let mut log = Log::new();
     let mut start = Node::new(init_state.clone());
-    start.evaluate(end_state, h_func);
+    start.calc_cost(end_state, h_func);
     let mut open: BinaryHeap<Node> = BinaryHeap::new();
     let mut closed: HashMap<Grid, Node> = HashMap::new();
     open.push(start);
-    let mut stat_cnt = 0;
 
     while !open.is_empty() {
         let n = open.pop().unwrap();
         // println!("pop n, f: {}, h: {}", n.f, n.h);
-        let nodes = expand(&n, end_state, h_func);
-
-        if n.grid == *end_state {
-            println!("states expanded: {}", stat_cnt);
-            return Some(n);
+        if n.state == *end_state {
+            return None;
         }
 
-        closed.insert(n.grid.clone(), n);
+        let nodes = expand(&n, end_state, h_func);
+        closed.insert(n.state.clone(), n);
 
         for c in nodes {
-            stat_cnt += 1;
-            if closed.contains_key(&c.grid) {
-                let node = closed.get(&c.grid).unwrap();
-                if c.f < node.f {
-                    closed.remove(&c.grid);
+            if closed.contains_key(&c.state) {
+                let node = closed.get(&c.state).unwrap();
+                if c.g < node.g {
+                    closed.remove(&c.state);
                 } else {
                     continue;
                 }
