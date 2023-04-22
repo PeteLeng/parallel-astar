@@ -1,11 +1,7 @@
 use std::collections::{BinaryHeap, HashMap};
 use crate::util::{Grid, Node, expand, Log};
 
-pub fn astar<'a>(
-    init_state: &Grid,
-    end_state: &Grid,
-    h_func: fn(&Grid, &Grid) -> i32,
-) -> Option<Node<'a>> {
+pub fn astar(init_state: &Grid, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i32) -> Option<Node> {
     let mut log = Log::new();
     let mut start = Node::new(init_state.clone());
     start.calc_cost(end_state, h_func);
@@ -14,25 +10,27 @@ pub fn astar<'a>(
     open.push(start);
 
     while !open.is_empty() {
+        log.iter_cnt += 1;
         let n = open.pop().unwrap();
         // println!("pop n, f: {}, h: {}", n.f, n.h);
         if n.state == *end_state {
-            return None;
+            println!("#iter: {}", log.iter_cnt);
+            return Some(n);
         }
 
         let nodes = expand(&n, end_state, h_func);
         closed.insert(n.state.clone(), n);
 
-        for c in nodes {
-            if closed.contains_key(&c.state) {
-                let node = closed.get(&c.state).unwrap();
-                if c.g < node.g {
-                    closed.remove(&c.state);
+        for node in nodes {
+            if closed.contains_key(&node.state) {
+                let closed_node = closed.get(&node.state).unwrap();
+                if node.g < closed_node.g {
+                    closed.remove(&node.state);
                 } else {
                     continue;
                 }
             }
-            open.push(c);
+            open.push(node);
         }
     }
     None
