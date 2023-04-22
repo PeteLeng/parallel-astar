@@ -163,7 +163,8 @@ pub struct Node {
     pub f: i32,
     pub g: i32,
     pub h: i32,
-    pub prev_actions: Box<Vec<(i32, i32)>>,
+    // pub prev_actions: Box<Vec<(i32, i32)>>,
+    // pub prev_node: Option<Box<Node>>,
 }
 
 impl Node {
@@ -173,7 +174,8 @@ impl Node {
             f: 0,
             g: 0,
             h: 0,
-            prev_actions: Box::new(vec![]),
+            // prev_actions: Box::new(vec![]),
+            // prev_node: None,
         }
     }
 
@@ -228,31 +230,40 @@ pub fn expand(node: &Node, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i32) ->
             let g = node.g + 1;
             let h = h_func(&state, end_state);
             let f = g + h;
-            let (x, y) = state.get_coord(state.empty_idx);
-            let (px, py) = node.state.get_coord(node.state.empty_idx);
-            let mut prev_actions = (*node.prev_actions).clone();
-            prev_actions.push((x - px, y - py));
+            // let (x, y) = state.get_coord(state.empty_idx);
+            // let (px, py) = node.state.get_coord(node.state.empty_idx);
+            // let mut prev_actions = (*node.prev_actions).clone();
+            // prev_actions.push((x - px, y - py));
             Node {
                 state,
                 f,
                 g,
                 h,
-                prev_actions: Box::new(prev_actions),
+                // prev_actions: Box::new(prev_actions),
+                // prev_node: Some(Box::new(node.clone())),
             }
         })
         .collect()
 }
 
-pub fn print_path(node: &Node) {
-    let mut state = node.state.clone();
-    let mut actions = (*node.prev_actions).clone();
-    println!("{}", state);
-    while let Some(act) = actions.pop() {
-        let act_rev = (-act.0, -act.1);
-        state = state.do_action(act_rev);
-        println!("{}", state);
-    }
-}
+// pub fn print_path(node: &Node) {
+//     let mut state = node.state.clone();
+//     let mut actions = (*node.prev_actions).clone();
+//     println!("{}", state);
+//     while let Some(act) = actions.pop() {
+//         let act_rev = (-act.0, -act.1);
+//         state = state.do_action(act_rev);
+//         println!("{}", state);
+//     }
+// }
+
+// pub fn print_path(node: &Node) {
+//     let mut end = node.clone();
+//     while let Some(b) = end.prev_node {
+//         println!("{}", (*b).state);
+//         end = *b;
+//     }
+// }
 
 pub struct Log {
     pub iter_cnt: i32,

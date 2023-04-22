@@ -1,9 +1,11 @@
+use crossbeam::atomic::{self, AtomicCell};
+use crossbeam::channel::{Receiver, Sender};
 use rand::{thread_rng, Rng, SeedableRng};
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc, Barrier, Mutex};
+use std::sync::atomic::AtomicPtr;
+use std::sync::atomic::Ordering;
+use std::sync::{Arc, Barrier, Mutex};
 use std::thread;
 
 use crate::util::{expand, man_dist, Grid, Log, Node};
@@ -11,23 +13,26 @@ use crate::util::{expand, man_dist, Grid, Log, Node};
 pub fn astar(init_state: &Grid, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i32) -> Option<Node> {
     let num_threads = 8;
     // Initialize termination variables
-    let msg_sent = Arc::new(AtomicU64::new(0));
-    let msg_recv = Arc::new(AtomicU64::new(0));
-    // let bar = Arc::new(Barrier::new(num_threads));
-    let term = Arc::new(AtomicBool::new(false));
+    let msg_sent: Arc<AtomicCell<i32>> = Arc::new(AtomicCell::new(0));
+    let msg_recv: Arc<AtomicCell<i32>> = Arc::new(AtomicCell::new(0));
+    let term: Arc<AtomicCell<bool>> = Arc::new(AtomicCell::new(false));
 
     // Initialize communication channels
     let mut senders = Vec::with_capacity(num_threads);
     let mut receivers = Vec::with_capacity(num_threads);
     for _ in 0..num_threads {
-        let (tx, rx) = mpsc::channel();
-        senders.push(tx);
-        receivers.push(rx);
+        let (s, r) = crossbeam::channel::unbounded();
+        senders.push(s);
+        receivers.push(r);
     }
 
     // Initialize incumbent
     let incumbent = Arc::new(Mutex::new(Node::new(init_state.clone())));
     incumbent.lock().unwrap().f = i32::MAX;
+    // let mut incumbent = Node::new(init_state.clone());
+    // incumbent.f = i32::MAX;
+    // let p_incumbent: Arc<AtomicPtr<_>> =
+    //     Arc::new(AtomicPtr::new(Box::into_raw(Box::new(incumbent))));
 
     // Initialize threads
     let mut handles = Vec::with_capacity(num_threads);
@@ -38,7 +43,6 @@ pub fn astar(init_state: &Grid, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i3
         let rx = receivers.remove(0);
         let msg_sent = msg_sent.clone();
         let msg_recv = msg_recv.clone();
-        // let bar = bar.clone();
         let term = term.clone();
         let incumbent = incumbent.clone();
         let h = thread::spawn(move || {
@@ -52,7 +56,6 @@ pub fn astar(init_state: &Grid, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i3
                 senders,
                 msg_sent,
                 msg_recv,
-                // bar,
                 term,
             );
         });
@@ -64,6 +67,11 @@ pub fn astar(init_state: &Grid, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i3
     }
 
     println!("terminated!");
+    // let end;
+    // unsafe {
+    //     end = (*p_incumbent.load(Ordering::Relaxed)).clone();
+    // }
+    // Some(end)
     let end = incumbent.lock().unwrap();
     Some(end.clone())
 }
@@ -76,10 +84,9 @@ pub fn search(
     h_func: fn(&Grid, &Grid) -> i32,
     rx: Receiver<Node>,
     senders: Vec<Sender<Node>>,
-    msg_sent: Arc<AtomicU64>,
-    msg_recv: Arc<AtomicU64>,
-    // bar: Arc<Barrier>,
-    term: Arc<AtomicBool>,
+    msg_sent: Arc<AtomicCell<i32>>,
+    msg_recv: Arc<AtomicCell<i32>>,
+    term: Arc<AtomicCell<bool>>,
 ) {
     // let mut first_iteration = true;
     let mut buffer: BinaryHeap<Node> = BinaryHeap::new();
@@ -99,7 +106,7 @@ pub fn search(
     loop {
         log.iter_cnt += 1;
         // Termination detection
-        if term.load(Ordering::SeqCst) {
+        if term.load() {
             // println!("sent: {}", msg_sent.load(Ordering::SeqCst));
             // println!("received: {}", msg_recv.load(Ordering::SeqCst));
             println!("#iter: {}", log.iter_cnt);
@@ -167,14 +174,23 @@ pub fn search(
 
         if node.state == *end_state {
             println!("Found solution");
-            term.store(true, Ordering::SeqCst);
+            term.store(true);
             let mut incumbent = incumbent.lock().unwrap();
             if node.f < incumbent.f {
                 *incumbent = node.clone();
                 continue;
             }
+            // let p_incumbent = incumbent.load(Ordering::SeqCst);
+            // if node.f < unsafe { (*p_incumbent).f } {
+            //     incumbent.compare_exchange(
+            //         p_incumbent,
+            //         Box::into_raw(Box::new(node)),
+            //         Ordering::SeqCst,
+            //         Ordering::SeqCst,
+            //     );
+            //     continue;
+            // }
         }
-        // lock dropped here.
 
         let successors = expand(&node, end_state, h_func);
         for succ in successors {

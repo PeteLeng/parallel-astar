@@ -6,9 +6,10 @@ use std::collections::BinaryHeap;
 use std::time::{Duration, Instant};
 
 mod dpa;
+mod dpa_cb;
 mod seq;
 mod util;
-use util::{expand, man_dist, print_path, Grid, Node};
+use util::{expand, man_dist, Grid, Node};
 
 fn main() {
     println!("Hello, world!");
@@ -62,6 +63,14 @@ fn main() {
     println!("dpa:");
     let start = Instant::now();
     let n = dpa::astar(&start_state, &end_state, man_dist).unwrap();
+    println!("{}", n.state);
+    println!("f: {}, g: {}, h: {}", n.f, n.g, n.h);
+    let dur = start.elapsed();
+    println!("time: {:?}", dur);
+
+    println!("dpa crossbeam:");
+    let start = Instant::now();
+    let n = dpa_cb::astar(&start_state, &end_state, man_dist).unwrap();
     println!("{}", n.state);
     println!("f: {}, g: {}, h: {}", n.f, n.g, n.h);
     let dur = start.elapsed();
