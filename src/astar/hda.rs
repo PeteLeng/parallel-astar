@@ -1,35 +1,52 @@
+use crossbeam::atomic::{self, AtomicCell};
+use crossbeam::channel::{Receiver, Sender};
 use rand::{thread_rng, Rng, SeedableRng};
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap};
+// use std::sync::atomic::AtomicPtr;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc, Barrier, Mutex};
+use std::sync::{Arc, Barrier, Mutex, RwLock};
 use std::thread;
 
-use crate::util::{expand, man_dist, Grid, Log, Node};
+use crate::util::{calc_receiver, expand, man_dist, AZHasher, Grid, Log, Node, StateHash, ZHasher};
 
 pub fn astar(init_state: &Grid, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i32) -> Option<Node> {
     let num_threads = 8;
     // Initialize termination variables
     let msg_sent = Arc::new(AtomicU64::new(0));
     let msg_recv = Arc::new(AtomicU64::new(0));
-    // let bar = Arc::new(Barrier::new(num_threads));
     let term = Arc::new(AtomicBool::new(false));
 
     // Initialize communication channels
     let mut senders = Vec::with_capacity(num_threads);
     let mut receivers = Vec::with_capacity(num_threads);
     for _ in 0..num_threads {
-        let (tx, rx) = mpsc::channel();
-        senders.push(tx);
-        receivers.push(rx);
+        let (s, r) = crossbeam::channel::unbounded();
+        senders.push(s);
+        receivers.push(r);
     }
 
     // Initialize incumbent
-    let incumbent = Arc::new(Mutex::new(Node::new(init_state.clone())));
-    incumbent.lock().unwrap().f = i32::MAX;
+    // with Mutex
+    // let incumbent = Arc::new(Mutex::new(Node::new(init_state.clone())));
+    // incumbent.lock().unwrap().f = i32::MAX;
+
+    // with RwLock
+    let incumbent = Arc::new(RwLock::new(Node::new(init_state.clone())));
+    {
+        let mut inc = incumbent.write().unwrap();
+        inc.f = i32::MAX;
+    }
+
+    // with AtomicPtr
+    // let mut incumbent = Node::new(init_state.clone());
+    // incumbent.f = i32::MAX;
+    // let p_incumbent: Arc<AtomicPtr<_>> =
+    //     Arc::new(AtomicPtr::new(Box::into_raw(Box::new(incumbent))));
 
     // Initialize threads
+    // let hasher = ZHasher::new(init_state.size);
+    let hasher = AZHasher::new(init_state.size);
     let mut handles = Vec::with_capacity(num_threads);
     for i in 0..num_threads {
         let init_state = init_state.clone();
@@ -38,9 +55,9 @@ pub fn astar(init_state: &Grid, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i3
         let rx = receivers.remove(0);
         let msg_sent = msg_sent.clone();
         let msg_recv = msg_recv.clone();
-        // let bar = bar.clone();
         let term = term.clone();
         let incumbent = incumbent.clone();
+        let hasher = hasher.clone();
         let h = thread::spawn(move || {
             search(
                 &init_state,
@@ -48,45 +65,66 @@ pub fn astar(init_state: &Grid, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i3
                 incumbent,
                 num_threads as i32,
                 h_func,
+                i as i32,
                 rx,
                 senders,
                 msg_sent,
                 msg_recv,
-                // bar,
                 term,
-            );
+                hasher,
+            )
         });
         handles.push(h);
     }
 
+    let mut main_log = Log::new();
     for h in handles {
-        h.join().unwrap();
+        let log = h.join().unwrap();
+        main_log.merge(log);
     }
+    println!(
+        "average iteration: {}",
+        main_log.iter_cnt / num_threads as i32
+    );
+    println!("average abort: {}", main_log.abort_cnt / num_threads as i32);
+    println!("total nodes expanded: {}", main_log.iter_cnt);
 
     println!("terminated!");
-    let end = incumbent.lock().unwrap();
-    Some(end.clone())
+    // with Mutex
+    // let end = incumbent.lock().unwrap();
+    // Some(end.clone())
+
+    // with RwLock
+    let end = incumbent.read().unwrap().clone();
+    Some(end)
+
+    // with AtomicPtr
+    // let end;
+    // unsafe {
+    //     end = (*p_incumbent.load(Ordering::Relaxed)).clone();
+    // }
+    // Some(end)
 }
 
-pub fn search(
+pub fn search<T: StateHash>(
     start_state: &Grid,
     end_state: &Grid,
-    incumbent: Arc<Mutex<Node>>,
+    incumbent: Arc<RwLock<Node>>,
     num_threads: i32,
     h_func: fn(&Grid, &Grid) -> i32,
+    thread_num: i32,
     rx: Receiver<Node>,
     senders: Vec<Sender<Node>>,
     msg_sent: Arc<AtomicU64>,
     msg_recv: Arc<AtomicU64>,
-    // bar: Arc<Barrier>,
     term: Arc<AtomicBool>,
-) {
+    hasher: T,
+) -> Log {
     // let mut first_iteration = true;
     let mut buffer: BinaryHeap<Node> = BinaryHeap::new();
     let mut queue: BinaryHeap<Node> = BinaryHeap::new();
     let mut open_states: HashMap<Grid, i32> = HashMap::new(); // map grid -> f
     let mut closed_states: HashMap<Grid, i32> = HashMap::new(); // map grid -> f
-    let mut rng = rand::rngs::StdRng::seed_from_u64(10);
     let mut log = Log::new();
 
     // Initialization
@@ -107,13 +145,17 @@ pub fn search(
         }
         // first_iteration = false;
 
-        loop {
-            if let Ok(msg) = rx.try_recv() {
-                // msg_recv.fetch_add(1, Ordering::SeqCst);
-                buffer.push(msg);
-                continue;
+        // Intuitively the lower the communication temp,
+        // the less frequent is checking buffer needed.
+        if log.iter_cnt % 2 == 0 {
+            loop {
+                if let Ok(msg) = rx.try_recv() {
+                    // msg_recv.fetch_add(1, Ordering::SeqCst);
+                    buffer.push(msg);
+                    continue;
+                }
+                break;
             }
-            break;
         }
 
         // Handle incoming messages
@@ -149,7 +191,8 @@ pub fn search(
 
         // Expand node from local queue
         // skip if open_states is empty or local node is worse than incumbent
-        if open_states.is_empty() || queue.peek().unwrap().f >= incumbent.lock().unwrap().f {
+        if open_states.is_empty() || queue.peek().unwrap().f >= incumbent.read().unwrap().f {
+            log.abort_cnt += 1;
             continue;
         }
 
@@ -166,24 +209,27 @@ pub fn search(
         closed_states.insert(node.state.clone(), node.g);
 
         if node.state == *end_state {
-            println!("Found solution");
+            println!("Reach end state.");
             term.store(true, Ordering::SeqCst);
-            let mut incumbent = incumbent.lock().unwrap();
+            let mut incumbent = incumbent.write().unwrap();
             if node.f < incumbent.f {
                 *incumbent = node.clone();
                 continue;
             }
         }
-        // lock dropped here.
 
         let successors = expand(&node, end_state, h_func);
         for succ in successors {
             loop {
-                let i = rng.gen_range(0..num_threads);
+                let i = succ.state.hash_with(&hasher) % (num_threads as u32);
+                if i == thread_num as u32 {
+                    buffer.push(succ);
+                    break;
+                }
                 match senders[i as usize].send(succ.clone()) {
                     Ok(_) => {
+                        log.node_cnt += 1;
                         // msg_sent.fetch_add(1, Ordering::SeqCst);
-                        // println!("send node f: {}, h: {}", c.f, c.h);
                         break;
                     }
                     Err(_) => continue,
@@ -191,4 +237,5 @@ pub fn search(
             }
         }
     }
+    log
 }

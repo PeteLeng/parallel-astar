@@ -5,21 +5,19 @@ use rand::{Rng, SeedableRng};
 use std::collections::BinaryHeap;
 use std::time::{Duration, Instant};
 
-mod dpa;
-mod dpa_cb;
-mod seq;
-mod util;
-use util::{expand, man_dist, Grid, Node};
+mod astar;
+mod utils;
+
+use astar::{dpa, hda, seq};
+use utils::helpers::man_dist;
+use utils::structs::{Grid, Node};
 
 fn main() {
     println!("Hello, world!");
-    let moves = vec![(0, 1), (0, -1), (1, 0), (-1, 0)];
     let end_state = Grid::rand_with_seed(5, 13, 69);
     println!("end:\n{}", end_state);
 
-    let mut r = rand::rngs::StdRng::seed_from_u64(10);
-    let actions: Vec<(i32, i32)> = (0..169).map(|_| moves[r.gen_range(0..4)]).collect();
-    let start_state = end_state.do_actions(actions);
+    let start_state = end_state.rand_actions(200);
     println!(
         "dist from end state: {d}",
         d = man_dist(&start_state, &end_state)
@@ -50,29 +48,53 @@ fn main() {
     // println!("{}", node.state);
     // println!("{:?}", *node.prev_actions);
 
-    println!("seq:");
-    let start = Instant::now();
-    let n = seq::astar(&start_state, &end_state, man_dist).unwrap();
-    println!("{}", n.state);
-    println!("f: {}, g: {}, h: {}", n.f, n.g, n.h);
-    let dur = start.elapsed();
-    println!("time: {:?}", dur);
-    println!("path taken:");
+    // println!("seq:");
+    // let start = Instant::now();
+    // let n = seq::astar(&start_state, &end_state, man_dist).unwrap();
+    // println!("{}", n.state);
+    // println!("f: {}, g: {}, h: {}", n.f, n.g, n.h);
+    // let dur = start.elapsed();
+    // println!("time: {:?}", dur);
+    // println!("path taken:");
     // print_path(&n);
 
-    println!("dpa:");
+    // println!("dpa:");
+    // let start = Instant::now();
+    // let n = dpa::astar(&start_state, &end_state, man_dist).unwrap();
+    // println!("{}", n.state);
+    // println!("f: {}, g: {}, h: {}", n.f, n.g, n.h);
+    // let dur = start.elapsed();
+    // println!("time: {:?}", dur);
+
+    // println!("dpa crossbeam temp 0.9:");
+    // let start = Instant::now();
+    // let n = dpa_cb::astar(&start_state, &end_state, man_dist, 0.9).unwrap();
+    // println!("{}", n.state);
+    // println!("f: {}, g: {}, h: {}", n.f, n.g, n.h);
+    // let dur = start.elapsed();
+    // println!("time: {:?}", dur);
+
+    // println!("dpa crossbeam temp 0.4:");
+    // let start = Instant::now();
+    // let n = dpa_cb::astar(&start_state, &end_state, man_dist, 0.4).unwrap();
+    // println!("{}", n.state);
+    // println!("f: {}, g: {}, h: {}", n.f, n.g, n.h);
+    // let dur = start.elapsed();
+    // println!("time: {:?}", dur);
+
+    println!("hda with zobrist:");
     let start = Instant::now();
-    let n = dpa::astar(&start_state, &end_state, man_dist).unwrap();
+    let n = hda::astar(&start_state, &end_state, man_dist).unwrap();
     println!("{}", n.state);
     println!("f: {}, g: {}, h: {}", n.f, n.g, n.h);
     let dur = start.elapsed();
     println!("time: {:?}", dur);
 
-    println!("dpa crossbeam:");
-    let start = Instant::now();
-    let n = dpa_cb::astar(&start_state, &end_state, man_dist).unwrap();
-    println!("{}", n.state);
-    println!("f: {}, g: {}, h: {}", n.f, n.g, n.h);
-    let dur = start.elapsed();
-    println!("time: {:?}", dur);
+    // let hasher = ZHasher::new(5);
+    // let states: Vec<Grid> = (0..100).map(|i| end_state.rand_actions(i)).collect();
+    // let start = Instant::now();
+    // states.iter().map(|s| s.hash_with(&hasher)).for_each(drop);
+    // // .for_each(|v| println!("hash value: {:0>32b}", v));
+    // let dur = start.elapsed();
+    // println!("time: {:?}", dur);
 }

@@ -3,19 +3,24 @@ use crossbeam::channel::{Receiver, Sender};
 use rand::{thread_rng, Rng, SeedableRng};
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap};
-use std::sync::atomic::AtomicPtr;
-use std::sync::atomic::Ordering;
-use std::sync::{Arc, Barrier, Mutex};
+// use std::sync::atomic::AtomicPtr;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Barrier, Mutex, RwLock};
 use std::thread;
 
 use crate::util::{expand, man_dist, Grid, Log, Node};
 
-pub fn astar(init_state: &Grid, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i32) -> Option<Node> {
+pub fn astar(
+    init_state: &Grid,
+    end_state: &Grid,
+    h_func: fn(&Grid, &Grid) -> i32,
+    temp: f32,
+) -> Option<Node> {
     let num_threads = 8;
     // Initialize termination variables
-    let msg_sent: Arc<AtomicCell<i32>> = Arc::new(AtomicCell::new(0));
-    let msg_recv: Arc<AtomicCell<i32>> = Arc::new(AtomicCell::new(0));
-    let term: Arc<AtomicCell<bool>> = Arc::new(AtomicCell::new(false));
+    let msg_sent = Arc::new(AtomicU64::new(0));
+    let msg_recv = Arc::new(AtomicU64::new(0));
+    let term = Arc::new(AtomicBool::new(false));
 
     // Initialize communication channels
     let mut senders = Vec::with_capacity(num_threads);
@@ -27,8 +32,18 @@ pub fn astar(init_state: &Grid, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i3
     }
 
     // Initialize incumbent
-    let incumbent = Arc::new(Mutex::new(Node::new(init_state.clone())));
-    incumbent.lock().unwrap().f = i32::MAX;
+    // with Mutex
+    // let incumbent = Arc::new(Mutex::new(Node::new(init_state.clone())));
+    // incumbent.lock().unwrap().f = i32::MAX;
+
+    // with RwLock
+    let incumbent = Arc::new(RwLock::new(Node::new(init_state.clone())));
+    {
+        let mut inc = incumbent.write().unwrap();
+        inc.f = i32::MAX;
+    }
+
+    // with AtomicPtr
     // let mut incumbent = Node::new(init_state.clone());
     // incumbent.f = i32::MAX;
     // let p_incumbent: Arc<AtomicPtr<_>> =
@@ -57,37 +72,54 @@ pub fn astar(init_state: &Grid, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i3
                 msg_sent,
                 msg_recv,
                 term,
-            );
+                temp,
+            )
         });
         handles.push(h);
     }
 
+    let mut main_log = Log::new();
     for h in handles {
-        h.join().unwrap();
+        let log = h.join().unwrap();
+        main_log.merge(log);
     }
+    println!(
+        "average iteration: {}",
+        main_log.iter_cnt / num_threads as i32
+    );
+    println!("average abort: {}", main_log.abort_cnt / num_threads as i32);
+    println!("total nodes expanded: {}", main_log.iter_cnt);
 
     println!("terminated!");
+    // with Mutex
+    // let end = incumbent.lock().unwrap();
+    // Some(end.clone())
+
+    // with RwLock
+    let end = incumbent.read().unwrap().clone();
+    Some(end)
+
+    // with AtomicPtr
     // let end;
     // unsafe {
     //     end = (*p_incumbent.load(Ordering::Relaxed)).clone();
     // }
     // Some(end)
-    let end = incumbent.lock().unwrap();
-    Some(end.clone())
 }
 
 pub fn search(
     start_state: &Grid,
     end_state: &Grid,
-    incumbent: Arc<Mutex<Node>>,
+    incumbent: Arc<RwLock<Node>>,
     num_threads: i32,
     h_func: fn(&Grid, &Grid) -> i32,
     rx: Receiver<Node>,
     senders: Vec<Sender<Node>>,
-    msg_sent: Arc<AtomicCell<i32>>,
-    msg_recv: Arc<AtomicCell<i32>>,
-    term: Arc<AtomicCell<bool>>,
-) {
+    msg_sent: Arc<AtomicU64>,
+    msg_recv: Arc<AtomicU64>,
+    term: Arc<AtomicBool>,
+    temp: f32,
+) -> Log {
     // let mut first_iteration = true;
     let mut buffer: BinaryHeap<Node> = BinaryHeap::new();
     let mut queue: BinaryHeap<Node> = BinaryHeap::new();
@@ -106,7 +138,7 @@ pub fn search(
     loop {
         log.iter_cnt += 1;
         // Termination detection
-        if term.load() {
+        if term.load(Ordering::SeqCst) {
             // println!("sent: {}", msg_sent.load(Ordering::SeqCst));
             // println!("received: {}", msg_recv.load(Ordering::SeqCst));
             println!("#iter: {}", log.iter_cnt);
@@ -114,13 +146,17 @@ pub fn search(
         }
         // first_iteration = false;
 
-        loop {
-            if let Ok(msg) = rx.try_recv() {
-                // msg_recv.fetch_add(1, Ordering::SeqCst);
-                buffer.push(msg);
-                continue;
+        // Intuitively the lower the communication temp,
+        // the less frequent is checking buffer needed.
+        if log.iter_cnt % 8 == 0 {
+            loop {
+                if let Ok(msg) = rx.try_recv() {
+                    // msg_recv.fetch_add(1, Ordering::SeqCst);
+                    buffer.push(msg);
+                    continue;
+                }
+                break;
             }
-            break;
         }
 
         // Handle incoming messages
@@ -156,7 +192,8 @@ pub fn search(
 
         // Expand node from local queue
         // skip if open_states is empty or local node is worse than incumbent
-        if open_states.is_empty() || queue.peek().unwrap().f >= incumbent.lock().unwrap().f {
+        if open_states.is_empty() || queue.peek().unwrap().f >= incumbent.read().unwrap().f {
+            log.abort_cnt += 1;
             continue;
         }
 
@@ -173,9 +210,9 @@ pub fn search(
         closed_states.insert(node.state.clone(), node.g);
 
         if node.state == *end_state {
-            println!("Found solution");
-            term.store(true);
-            let mut incumbent = incumbent.lock().unwrap();
+            println!("Reach end state.");
+            term.store(true, Ordering::SeqCst);
+            let mut incumbent = incumbent.write().unwrap();
             if node.f < incumbent.f {
                 *incumbent = node.clone();
                 continue;
@@ -194,17 +231,24 @@ pub fn search(
 
         let successors = expand(&node, end_state, h_func);
         for succ in successors {
-            loop {
-                let i = rng.gen_range(0..num_threads);
-                match senders[i as usize].send(succ.clone()) {
-                    Ok(_) => {
-                        // msg_sent.fetch_add(1, Ordering::SeqCst);
-                        // println!("send node f: {}, h: {}", c.f, c.h);
-                        break;
-                    }
-                    Err(_) => continue,
-                };
+            let t: f32 = rng.gen();
+            // temp regulates frequency of communication
+            if t < temp {
+                loop {
+                    let i = rng.gen_range(0..num_threads);
+                    match senders[i as usize].send(succ.clone()) {
+                        Ok(_) => {
+                            log.node_cnt += 1;
+                            // msg_sent.fetch_add(1, Ordering::SeqCst);
+                            break;
+                        }
+                        Err(_) => continue,
+                    };
+                }
+            } else {
+                buffer.push(succ);
             }
         }
     }
+    log
 }

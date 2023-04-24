@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 use rand::{Rng, SeedableRng};
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, Hash)]
@@ -116,12 +116,30 @@ impl Grid {
             })
     }
 
+    pub fn rand_actions(&self, n: i32) -> Self {
+        let mut r = rand::rngs::StdRng::seed_from_u64(10);
+        let moves = vec![(0, 1), (0, -1), (1, 0), (-1, 0)];
+        let actions: Vec<(i32, i32)> = (0..n).map(|_| moves[r.gen_range(0..4)]).collect();
+        self.do_actions(actions)
+    }
+
     pub fn expand(&self) -> Vec<Self> {
         let moves = [(-1, 0), (1, 0), (0, -1), (0, 1)];
         moves
             .iter()
             .filter_map(|&action| self.try_action(action))
             .collect()
+    }
+
+    pub fn hash_with<T: StateHash>(&self, hasher: &T) -> u32 {
+        (0..self.size.pow(2))
+            .filter(|&i| self.data[i as usize].is_some())
+            .map(|i| {
+                let n = self.data[i as usize].unwrap();
+                hasher.hash_prop(n, i)
+            })
+            .reduce(|acc, e| acc ^ e)
+            .unwrap()
     }
 }
 
@@ -205,76 +223,97 @@ impl Ord for Node {
     }
 }
 
-pub fn man_dist(g1: &Grid, g2: &Grid) -> i32 {
-    // Assume grids with same size and same elements.
-    let mut map = HashMap::new();
-    for i in 0..g1.size.pow(2) {
-        map.insert(g2.data[i as usize], g2.get_coord(i));
-    }
-    // println!("{:?}", map);
-
-    let mut dist = 0;
-    for i in 0..g1.size.pow(2) {
-        let (x1, y1) = g1.get_coord(i);
-        let &(x2, y2) = map.get(&g1.data[i as usize]).unwrap();
-        dist += (x1 - x2).abs() + (y1 - y2).abs();
-    }
-    dist
-}
-
-pub fn expand(node: &Node, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i32) -> Vec<Node> {
-    let states = node.state.expand();
-    states
-        .into_iter()
-        .map(|state| {
-            let g = node.g + 1;
-            let h = h_func(&state, end_state);
-            let f = g + h;
-            // let (x, y) = state.get_coord(state.empty_idx);
-            // let (px, py) = node.state.get_coord(node.state.empty_idx);
-            // let mut prev_actions = (*node.prev_actions).clone();
-            // prev_actions.push((x - px, y - py));
-            Node {
-                state,
-                f,
-                g,
-                h,
-                // prev_actions: Box::new(prev_actions),
-                // prev_node: Some(Box::new(node.clone())),
-            }
-        })
-        .collect()
-}
-
-// pub fn print_path(node: &Node) {
-//     let mut state = node.state.clone();
-//     let mut actions = (*node.prev_actions).clone();
-//     println!("{}", state);
-//     while let Some(act) = actions.pop() {
-//         let act_rev = (-act.0, -act.1);
-//         state = state.do_action(act_rev);
-//         println!("{}", state);
-//     }
-// }
-
-// pub fn print_path(node: &Node) {
-//     let mut end = node.clone();
-//     while let Some(b) = end.prev_node {
-//         println!("{}", (*b).state);
-//         end = *b;
-//     }
-// }
-
 pub struct Log {
     pub iter_cnt: i32,
-    pub expn_cnt: i32,
+    pub node_cnt: i32,
+    pub abort_cnt: i32,
+    // pub com_time: i32,
 }
 
 impl Log {
     pub fn new() -> Self {
         Log {
             iter_cnt: 0,
-            expn_cnt: 0,
+            node_cnt: 0,
+            abort_cnt: 0,
         }
+    }
+
+    pub fn merge(&mut self, log: Log) -> () {
+        self.iter_cnt += log.iter_cnt;
+        self.abort_cnt += log.abort_cnt;
+        self.node_cnt += log.abort_cnt;
+    }
+}
+
+pub trait StateHash {
+    // fn hash_grid(&self, g: &Grid) -> u32;
+    // fn get_htable(&self) -> &Vec<Vec<u32>>;
+    fn hash_prop(&self, _: i32, _: i32) -> u32;
+}
+
+#[derive(Debug, Clone)]
+pub struct ZHasher {
+    // num[loc[bits]]
+    pub htable: Vec<Vec<u32>>,
+}
+
+impl ZHasher {
+    pub fn new(size: i32) -> Self {
+        let mut r = rand::rngs::StdRng::seed_from_u64(420);
+        let htable: Vec<Vec<u32>> = (0..size.pow(2) - 1)
+            .map(|_| (0..size.pow(2)).map(|_| r.gen()).collect())
+            .collect();
+        ZHasher { htable }
+    }
+}
+
+impl StateHash for ZHasher {
+    // fn hash_grid(&self, g: &Grid) -> u32 {
+    //     let hval = 0;
+    //     (0..g.size.pow(2))
+    //         .filter(|&i| g.data[i as usize].is_some())
+    //         .map(|i| {
+    //             let n = g.data[i as usize].unwrap();
+    //             self.htable[n as usize][i as usize]
+    //         })
+    //         .reduce(|acc, e| acc ^ e)
+    //         .unwrap()
+    // }
+
+    // fn get_htable(&self) -> &Vec<Vec<u32>> {
+    //     &self.htable
+    // }
+
+    fn hash_prop(&self, n: i32, i: i32) -> u32 {
+        // Hash one propsition
+        self.htable[n as usize][i as usize]
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AZHasher {
+    pub htable: Vec<Vec<u32>>,
+    pub size: i32,
+}
+
+impl AZHasher {
+    // This implementation uses a hand-craft abstract function.
+    pub fn new(size: i32) -> Self {
+        let mut r = rand::rngs::StdRng::seed_from_u64(100);
+        let htable: Vec<Vec<u32>> = (0..size.pow(2) - 1)
+            .map(|_| (0..size).map(|_| r.gen()).collect())
+            .collect();
+        AZHasher { htable, size }
+    }
+
+    pub fn abx(&self, i: i32) -> i32 {
+        i / self.size
+    }
+}
+
+impl StateHash for AZHasher {
+    fn hash_prop(&self, n: i32, i: i32) -> u32 {
+        self.htable[n as usize][self.abx(i) as usize]
     }
 }
