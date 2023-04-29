@@ -19,7 +19,7 @@ done
 # Push to cycle machine
 SRC_DIR=(~/prog/rust/astar)
 DST_DIR=yleng2@cycle1.csug.rochester.edu:/u/yleng2/term/
-EXL_FLAGS=('*~' '*#' 'push_to_cycle.sh' target/ .git/)
+EXL_FLAGS=('*~' '*#' 'push_to_cycle.sh' target/ .git/ plots/)
 
 exl_args=()
 for f in "${EXL_FLAGS[@]}";

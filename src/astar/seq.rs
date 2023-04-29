@@ -1,5 +1,6 @@
+use crate::utils::helpers::expand;
+use crate::utils::structs::{Grid, Log, Node};
 use std::collections::{BinaryHeap, HashMap};
-use crate::util::{Grid, Node, expand, Log};
 
 pub fn astar(init_state: &Grid, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i32) -> Option<Node> {
     let mut log = Log::new();
@@ -14,7 +15,7 @@ pub fn astar(init_state: &Grid, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i3
         let n = open.pop().unwrap();
         // println!("pop n, f: {}, h: {}", n.f, n.h);
         if n.state == *end_state {
-            println!("#iter: {}", log.iter_cnt);
+            // println!("#iter: {}", log.iter_cnt);
             return Some(n);
         }
 

@@ -1,0 +1,16 @@
+import numpy as np
+
+from plots.hist import main
+
+
+def read_data(fname):
+    with open(fname, "r") as f:
+        data_raw = f.readlines()
+
+
+def main():
+    pass
+
+
+if __name__ == "__main__":
+    main()

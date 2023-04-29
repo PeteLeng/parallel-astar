@@ -1,0 +1,141 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+WARNING: HTML report generation will become a non-default optional feature in Criterion.rs 0.4.0.
+This feature is being moved to cargo-criterion (https://github.com/bheisler/cargo-criterion) and will be optional in a future version of Criterion.rs. To silence this warning, either switch to cargo-criterion or enable the 'html_reports' feature in your Cargo.toml.
+
+Benchmarking dpa temp/dpa_t2_p2
+Benchmarking dpa temp/dpa_t2_p2: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 60.0s.
+Benchmarking dpa temp/dpa_t2_p2: Collecting 10 samples in estimated 59.956 s (10 iterations)
+Benchmarking dpa temp/dpa_t2_p2: Analyzing
+dpa temp/dpa_t2_p2      time:   [6.4354 s 6.6855 s 6.9174 s]
+Benchmarking dpa temp/dpa_t2_p4
+Benchmarking dpa temp/dpa_t2_p4: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 53.8s.
+Benchmarking dpa temp/dpa_t2_p4: Collecting 10 samples in estimated 53.841 s (10 iterations)
+Benchmarking dpa temp/dpa_t2_p4: Analyzing
+dpa temp/dpa_t2_p4      time:   [6.2461 s 6.5446 s 6.8435 s]
+Benchmarking dpa temp/dpa_t2_p6
+Benchmarking dpa temp/dpa_t2_p6: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 57.4s.
+Benchmarking dpa temp/dpa_t2_p6: Collecting 10 samples in estimated 57.400 s (10 iterations)
+Benchmarking dpa temp/dpa_t2_p6: Analyzing
+dpa temp/dpa_t2_p6      time:   [6.2270 s 6.7921 s 7.4594 s]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+Benchmarking dpa temp/dpa_t2_p8
+Benchmarking dpa temp/dpa_t2_p8: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 67.1s.
+Benchmarking dpa temp/dpa_t2_p8: Collecting 10 samples in estimated 67.090 s (10 iterations)
+Benchmarking dpa temp/dpa_t2_p8: Analyzing
+dpa temp/dpa_t2_p8      time:   [6.6977 s 7.0676 s 7.4700 s]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+Benchmarking dpa temp/dpa_t4_p2
+Benchmarking dpa temp/dpa_t4_p2: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 56.2s.
+Benchmarking dpa temp/dpa_t4_p2: Collecting 10 samples in estimated 56.223 s (10 iterations)
+Benchmarking dpa temp/dpa_t4_p2: Analyzing
+dpa temp/dpa_t4_p2      time:   [5.5285 s 5.9271 s 6.3234 s]
+Benchmarking dpa temp/dpa_t4_p4
+Benchmarking dpa temp/dpa_t4_p4: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 50.6s.
+Benchmarking dpa temp/dpa_t4_p4: Collecting 10 samples in estimated 50.551 s (10 iterations)
+Benchmarking dpa temp/dpa_t4_p4: Analyzing
+dpa temp/dpa_t4_p4      time:   [5.0853 s 5.4909 s 5.8654 s]
+Benchmarking dpa temp/dpa_t4_p6
+Benchmarking dpa temp/dpa_t4_p6: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 55.6s.
+Benchmarking dpa temp/dpa_t4_p6: Collecting 10 samples in estimated 55.562 s (10 iterations)
+Benchmarking dpa temp/dpa_t4_p6: Analyzing
+dpa temp/dpa_t4_p6      time:   [5.3833 s 5.5357 s 5.6679 s]
+Found 3 outliers among 10 measurements (30.00%)
+  1 (10.00%) low severe
+  1 (10.00%) low mild
+  1 (10.00%) high mild
+Benchmarking dpa temp/dpa_t4_p8
+Benchmarking dpa temp/dpa_t4_p8: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 64.9s.
+Benchmarking dpa temp/dpa_t4_p8: Collecting 10 samples in estimated 64.919 s (10 iterations)
+Benchmarking dpa temp/dpa_t4_p8: Analyzing
+dpa temp/dpa_t4_p8      time:   [5.5656 s 5.8615 s 6.1740 s]
+Benchmarking dpa temp/dpa_t8_p2
+Benchmarking dpa temp/dpa_t8_p2: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 37.7s.
+Benchmarking dpa temp/dpa_t8_p2: Collecting 10 samples in estimated 37.691 s (10 iterations)
+Benchmarking dpa temp/dpa_t8_p2: Analyzing
+dpa temp/dpa_t8_p2      time:   [3.6435 s 4.0053 s 4.4608 s]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+Benchmarking dpa temp/dpa_t8_p4
+Benchmarking dpa temp/dpa_t8_p4: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 43.2s.
+Benchmarking dpa temp/dpa_t8_p4: Collecting 10 samples in estimated 43.227 s (10 iterations)
+Benchmarking dpa temp/dpa_t8_p4: Analyzing
+dpa temp/dpa_t8_p4      time:   [4.0266 s 4.4143 s 4.8556 s]
+Benchmarking dpa temp/dpa_t8_p6
+Benchmarking dpa temp/dpa_t8_p6: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 41.0s.
+Benchmarking dpa temp/dpa_t8_p6: Collecting 10 samples in estimated 40.981 s (10 iterations)
+Benchmarking dpa temp/dpa_t8_p6: Analyzing
+dpa temp/dpa_t8_p6      time:   [4.0445 s 4.5389 s 5.0563 s]
+Benchmarking dpa temp/dpa_t8_p8
+Benchmarking dpa temp/dpa_t8_p8: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 40.5s.
+Benchmarking dpa temp/dpa_t8_p8: Collecting 10 samples in estimated 40.464 s (10 iterations)
+Benchmarking dpa temp/dpa_t8_p8: Analyzing
+dpa temp/dpa_t8_p8      time:   [3.7172 s 3.8635 s 4.0256 s]
+Benchmarking dpa temp/dpa_t16_p2
+Benchmarking dpa temp/dpa_t16_p2: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 33.7s.
+Benchmarking dpa temp/dpa_t16_p2: Collecting 10 samples in estimated 33.653 s (10 iterations)
+Benchmarking dpa temp/dpa_t16_p2: Analyzing
+dpa temp/dpa_t16_p2     time:   [3.1037 s 3.4031 s 3.7227 s]
+Found 3 outliers among 10 measurements (30.00%)
+  1 (10.00%) low mild
+  1 (10.00%) high mild
+  1 (10.00%) high severe
+Benchmarking dpa temp/dpa_t16_p4
+Benchmarking dpa temp/dpa_t16_p4: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 32.1s.
+Benchmarking dpa temp/dpa_t16_p4: Collecting 10 samples in estimated 32.099 s (10 iterations)
+Benchmarking dpa temp/dpa_t16_p4: Analyzing
+dpa temp/dpa_t16_p4     time:   [3.0187 s 3.2225 s 3.4526 s]
+Found 2 outliers among 10 measurements (20.00%)
+  1 (10.00%) low severe
+  1 (10.00%) high severe
+Benchmarking dpa temp/dpa_t16_p6
+Benchmarking dpa temp/dpa_t16_p6: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 35.6s.
+Benchmarking dpa temp/dpa_t16_p6: Collecting 10 samples in estimated 35.604 s (10 iterations)
+Benchmarking dpa temp/dpa_t16_p6: Analyzing
+dpa temp/dpa_t16_p6     time:   [3.2381 s 3.4415 s 3.6687 s]
+Benchmarking dpa temp/dpa_t16_p8
+Benchmarking dpa temp/dpa_t16_p8: Warming up for 3.0000 s
+
+Warning: Unable to complete 10 samples in 5.0s. You may wish to increase target time to 37.1s.
+Benchmarking dpa temp/dpa_t16_p8: Collecting 10 samples in estimated 37.064 s (10 iterations)
+Benchmarking dpa temp/dpa_t16_p8: Analyzing
+dpa temp/dpa_t16_p8     time:   [3.1438 s 3.3403 s 3.5347 s]
+Found 2 outliers among 10 measurements (20.00%)
+  1 (10.00%) low severe
+  1 (10.00%) high severe
+

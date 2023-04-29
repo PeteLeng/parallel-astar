@@ -1,23 +1,22 @@
-use crossbeam::atomic::{self, AtomicCell};
+#![allow(unused_variables)]
 use crossbeam::channel::{Receiver, Sender};
-use rand::{thread_rng, Rng, SeedableRng};
-use std::collections::hash_map::Entry;
+use rand::{Rng, SeedableRng};
 use std::collections::{BinaryHeap, HashMap};
-// use std::sync::atomic::AtomicPtr;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Barrier, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use std::thread;
 
-use crate::utils::helpers::{expand, man_dist};
+use crate::utils::helpers::expand;
 use crate::utils::structs::{Grid, Log, Node};
 
 pub fn astar(
     init_state: &Grid,
     end_state: &Grid,
     h_func: fn(&Grid, &Grid) -> i32,
+    num_threads: usize,
     temp: f32,
 ) -> Option<Node> {
-    let num_threads = 8;
+    // let num_threads = 8;
     // Initialize termination variables
     let msg_sent = Arc::new(AtomicU64::new(0));
     let msg_recv = Arc::new(AtomicU64::new(0));
@@ -32,11 +31,6 @@ pub fn astar(
         receivers.push(r);
     }
 
-    // Initialize incumbent
-    // with Mutex
-    // let incumbent = Arc::new(Mutex::new(Node::new(init_state.clone())));
-    // incumbent.lock().unwrap().f = i32::MAX;
-
     // with RwLock
     let incumbent = Arc::new(RwLock::new(Node::new(init_state.clone())));
     {
@@ -44,15 +38,9 @@ pub fn astar(
         inc.f = i32::MAX;
     }
 
-    // with AtomicPtr
-    // let mut incumbent = Node::new(init_state.clone());
-    // incumbent.f = i32::MAX;
-    // let p_incumbent: Arc<AtomicPtr<_>> =
-    //     Arc::new(AtomicPtr::new(Box::into_raw(Box::new(incumbent))));
-
     // Initialize threads
     let mut handles = Vec::with_capacity(num_threads);
-    for i in 0..num_threads {
+    for _ in 0..num_threads {
         let init_state = init_state.clone();
         let end_state = end_state.clone();
         let senders = senders.clone();
@@ -84,28 +72,17 @@ pub fn astar(
         let log = h.join().unwrap();
         main_log.merge(log);
     }
-    println!(
-        "average iteration: {}",
-        main_log.iter_cnt / num_threads as i32
-    );
-    println!("average abort: {}", main_log.abort_cnt / num_threads as i32);
-    println!("total nodes expanded: {}", main_log.iter_cnt);
+    // println!(
+    //     "average iteration: {}",
+    //     main_log.iter_cnt / num_threads as i32
+    // );
+    // println!("average abort: {}", main_log.abort_cnt / num_threads as i32);
+    // println!("total nodes expanded: {}", main_log.iter_cnt);
 
-    println!("terminated!");
-    // with Mutex
-    // let end = incumbent.lock().unwrap();
-    // Some(end.clone())
-
+    // println!("terminated!");
     // with RwLock
     let end = incumbent.read().unwrap().clone();
     Some(end)
-
-    // with AtomicPtr
-    // let end;
-    // unsafe {
-    //     end = (*p_incumbent.load(Ordering::Relaxed)).clone();
-    // }
-    // Some(end)
 }
 
 pub fn search(
@@ -135,21 +112,21 @@ pub fn search(
     open_states.insert(start.state.clone(), start.f);
     queue.push(start);
 
-    // for _ in 0..1000
     loop {
         log.iter_cnt += 1;
         // Termination detection
         if term.load(Ordering::SeqCst) {
             // println!("sent: {}", msg_sent.load(Ordering::SeqCst));
             // println!("received: {}", msg_recv.load(Ordering::SeqCst));
-            println!("#iter: {}", log.iter_cnt);
+            // println!("#iter: {}", log.iter_cnt);
             break;
         }
         // first_iteration = false;
 
         // Intuitively the lower the communication temp,
-        // the less frequent is checking buffer needed.
-        if log.iter_cnt % 8 == 0 {
+        // the less frequent checking buffer is needed.
+        let freq = (2.0 / temp).round() as i32;
+        if log.iter_cnt % freq == 0 {
             loop {
                 if let Ok(msg) = rx.try_recv() {
                     // msg_recv.fetch_add(1, Ordering::SeqCst);
@@ -211,23 +188,13 @@ pub fn search(
         closed_states.insert(node.state.clone(), node.g);
 
         if node.state == *end_state {
-            println!("Reach end state.");
+            // println!("Reach end state.");
             term.store(true, Ordering::SeqCst);
             let mut incumbent = incumbent.write().unwrap();
             if node.f < incumbent.f {
                 *incumbent = node.clone();
                 continue;
             }
-            // let p_incumbent = incumbent.load(Ordering::SeqCst);
-            // if node.f < unsafe { (*p_incumbent).f } {
-            //     incumbent.compare_exchange(
-            //         p_incumbent,
-            //         Box::into_raw(Box::new(node)),
-            //         Ordering::SeqCst,
-            //         Ordering::SeqCst,
-            //     );
-            //     continue;
-            // }
         }
 
         let successors = expand(&node, end_state, h_func);

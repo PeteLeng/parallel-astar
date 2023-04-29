@@ -2,10 +2,11 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 use rand::{Rng, SeedableRng};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
 pub struct Grid {
     pub data: Vec<Option<i32>>,
     pub size: i32,
@@ -27,8 +28,9 @@ impl Grid {
         }
     }
 
-    pub fn rand(size: i32, empty_idx: i32) -> Self {
+    pub fn rand(size: i32) -> Self {
         let mut rng = rand::thread_rng();
+        let empty_idx = rng.gen_range(0..size.pow(2));
         let mut nums: Vec<i32> = (0..size.pow(2) - 1).collect();
         let mut data = vec![];
         for i in 0..size.pow(2) {
@@ -46,8 +48,9 @@ impl Grid {
         }
     }
 
-    pub fn rand_with_seed(size: i32, empty_idx: i32, seed: u64) -> Self {
+    pub fn rand_with_seed(size: i32, seed: u64) -> Self {
         let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        let empty_idx = rng.gen_range(0..size.pow(2));
         let mut nums: Vec<i32> = (0..size.pow(2) - 1).collect();
         let mut data = vec![];
         for i in 0..size.pow(2) {
@@ -117,7 +120,15 @@ impl Grid {
     }
 
     pub fn rand_actions(&self, n: i32) -> Self {
-        let mut r = rand::rngs::StdRng::seed_from_u64(10);
+        // let mut r = rand::rngs::StdRng::seed_from_u64(10);
+        let mut r = rand::thread_rng();
+        let moves = vec![(0, 1), (0, -1), (1, 0), (-1, 0)];
+        let actions: Vec<(i32, i32)> = (0..n).map(|_| moves[r.gen_range(0..4)]).collect();
+        self.do_actions(actions)
+    }
+
+    pub fn rand_actions_with_seed(&self, n: i32, s: u64) -> Self {
+        let mut r = rand::rngs::StdRng::seed_from_u64(s);
         let moves = vec![(0, 1), (0, -1), (1, 0), (-1, 0)];
         let actions: Vec<(i32, i32)> = (0..n).map(|_| moves[r.gen_range(0..4)]).collect();
         self.do_actions(actions)

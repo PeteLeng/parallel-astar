@@ -1,5 +1,61 @@
+use crate::astar::{dpa, hda};
 use crate::utils::structs::{Grid, Node};
+use serde_json;
 use std::collections::HashMap;
+use std::fmt::format;
+use std::fs::{read_to_string, File};
+use std::path::PathBuf;
+
+pub fn gen_tests((size, n, min, max): (i32, i32, i32, i32)) -> String {
+    assert!(min < max);
+    let end = Grid::rand(size);
+    let mut starts = Vec::with_capacity(n as usize);
+    let mut steps = min * 5;
+    while starts.len() < n as usize {
+        // println!("generated: {}", starts.len());
+        // println!("steps: {}", steps);
+        let mut left = 0;
+        let mut right = 0;
+        for _ in 0..10 {
+            if starts.len() == n as usize {
+                break;
+            }
+            let start = end.rand_actions(steps);
+            let d = man_dist(&start, &end);
+            if d < min {
+                left += 1;
+                continue;
+            } else if d > max {
+                right += 1;
+                continue;
+            } else {
+                starts.push(start);
+            }
+        }
+        if left > right {
+            steps += 10;
+        }
+        if left < right {
+            steps -= 10;
+        }
+    }
+
+    println!("{}", end);
+    // println!("{}", serde_json::to_string(&starts).unwrap());
+    let tests: Vec<(Grid, Grid)> = starts
+        .into_iter()
+        .map(|start| (start, end.clone()))
+        .collect();
+    serde_json::to_string(&tests).unwrap()
+}
+
+pub fn read_tests(fpath: &str) -> Vec<(Grid, Grid)> {
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.push(format!("src/tests/{}.txt", fpath));
+
+    let tests = read_to_string(path).unwrap();
+    serde_json::from_str(&tests).unwrap()
+}
 
 pub fn man_dist(g1: &Grid, g2: &Grid) -> i32 {
     // Assume grids with same size and same elements.
@@ -42,9 +98,9 @@ pub fn expand(node: &Node, end_state: &Grid, h_func: fn(&Grid, &Grid) -> i32) ->
         .collect()
 }
 
-pub fn calc_receiver(node: &Node, num_threads: i32) -> i32 {
-    1
-}
+// pub fn calc_receiver(node: &Node, num_threads: i32) -> i32 {
+//     1
+// }
 
 // pub fn print_path(node: &Node) {
 //     let mut state = node.state.clone();
